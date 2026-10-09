@@ -1,0 +1,32 @@
+name: Public records acquisition
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 11 * * 1'
+permissions:
+  contents: read
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test
+        run: python -m unittest discover -s tests -v
+      - name: Acquire Columbus public records
+        run: python -m hfmr.retriever --output evidence --number 1546 --street HIGH --start 2000 --end 2010
+      - name: Verify evidence integrity
+        if: always()
+        run: |
+          if [ -f evidence/manifest.json ]; then python -m hfmr.retriever --verify evidence; fi
+      - name: Upload acquisition results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: case001-evidence-${{ github.run_id }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: warn
